@@ -9,8 +9,23 @@ import { SwipeRow } from '@/components/swipe-row';
 import { toast } from '@/components/toast';
 import { Card, EmptyState, IconButton, Pill, ScreenTitle, useColors } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
+import { runOutInDays } from '@/lib/prediction';
 import type { GroceryItem } from '@/lib/types';
 import { useGroceryStore } from '@/store/groceryStore';
+
+function RunOutBadge({ item }: { item: GroceryItem }) {
+  const c = useColors();
+  const days = runOutInDays(item, Date.now());
+  if (days == null) return null;
+  const color = days <= (item.leadTimeDays ?? 2) ? c.warning : c.textSecondary;
+  const label = days < 0 ? 'out now' : days === 0 ? 'out today' : `~${days}d left`;
+  return (
+    <View style={styles.badge}>
+      <Ionicons name="time-outline" size={12} color={color} />
+      <Text style={{ color, fontSize: 12 }}>{label}</Text>
+    </View>
+  );
+}
 
 function ExpiryBadge({ at }: { at: number }) {
   const c = useColors();
@@ -68,7 +83,12 @@ export default function GroceryScreen() {
   return (
     <View style={[styles.container, { backgroundColor: c.background, paddingTop: insets.top }]}>
       <ScreenTitle
-        right={<IconButton name="basket-outline" onPress={() => router.push('/shopping')} color={lowCount ? c.tint : c.textSecondary} />}
+        right={
+          <View style={styles.headerActions}>
+            <IconButton name="scan-outline" onPress={() => router.push('/scan')} />
+            <IconButton name="basket-outline" onPress={() => router.push('/shopping')} color={lowCount ? c.tint : c.textSecondary} />
+          </View>
+        }
       >
         Grocery
       </ScreenTitle>
@@ -117,10 +137,11 @@ export default function GroceryScreen() {
                 </Pressable>
                 <View style={styles.rowText}>
                   <Text style={[styles.name, { color: c.text }]} numberOfLines={1}>{item.name}</Text>
-                  {item.qty || item.expiryAt ? (
+                  {item.qty || item.expiryAt || runOutInDays(item, Date.now()) != null ? (
                     <View style={styles.metaRow}>
                       {item.qty ? <Text style={[styles.qty, { color: c.textSecondary }]}>{item.qty}</Text> : null}
                       {item.expiryAt ? <ExpiryBadge at={item.expiryAt} /> : null}
+                      <RunOutBadge item={item} />
                     </View>
                   ) : null}
                 </View>
@@ -137,6 +158,7 @@ export default function GroceryScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   flex: { flexGrow: 1 },
   controls: { paddingHorizontal: Spacing.three, gap: Spacing.three, paddingBottom: Spacing.three },
   addRow: {

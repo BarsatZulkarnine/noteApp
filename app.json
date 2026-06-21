@@ -49,6 +49,12 @@
           "photosPermission": "Allow $(PRODUCT_NAME) to attach photos to your notes.",
           "cameraPermission": "Allow $(PRODUCT_NAME) to take photos for your notes."
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow $(PRODUCT_NAME) to scan grocery barcodes."
+        }
       ]
     ],
     "experiments": {

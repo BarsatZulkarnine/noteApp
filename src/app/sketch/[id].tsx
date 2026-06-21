@@ -24,6 +24,7 @@ export default function SketchScreen() {
   const [color, setColor] = useState(PALETTE[0]);
   const [width, setWidth] = useState(WIDTHS[1]);
   const sizeRef = useRef({ w: 0, h: 0 });
+  const [size, setSize] = useState({ w: 0, h: 0 });
   const colorRef = useRef(color);
   const widthRef = useRef(width);
   colorRef.current = color;
@@ -76,10 +77,14 @@ export default function SketchScreen() {
 
       <View
         style={styles.canvasWrap}
-        onLayout={(e) => { sizeRef.current = { w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height }; }}
+        onLayout={(e) => {
+          const { width, height } = e.nativeEvent.layout;
+          sizeRef.current = { w: width, h: height };
+          setSize({ w: width, h: height });
+        }}
         {...responder.panHandlers}
       >
-        <Svg style={StyleSheet.absoluteFill}>
+        <Svg width={size.w || '100%'} height={size.h || '100%'} style={StyleSheet.absoluteFill}>
           {strokes.map((s, i) => (
             <Path key={i} d={s.d} stroke={s.color} strokeWidth={s.width} fill="none" strokeLinecap="round" strokeLinejoin="round" />
           ))}
