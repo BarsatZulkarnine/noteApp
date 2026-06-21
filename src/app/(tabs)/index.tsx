@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card, IconButton, ProgressBar, ScreenTitle, SectionLabel, useColors } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { dateKey } from '@/lib/date';
+import { currentStreak, lastNDays } from '@/lib/streak';
 import { useGroceryStore } from '@/store/groceryStore';
 import { useHabitsStore } from '@/store/habitsStore';
 import { useNotesStore } from '@/store/notesStore';
@@ -45,17 +46,29 @@ export default function TodayScreen() {
         {habits.map((h) => {
           const count = h.byDate[today] ?? 0;
           const done = h.kind === 'check' ? count >= 1 : count >= h.goal;
+          const metDates = Object.entries(h.byDate).filter(([, v]) => v >= h.goal).map(([k]) => k);
+          const streak = currentStreak(metDates);
+          const week = lastNDays(metDates, 7);
           return (
             <Pressable key={h.id} onPress={() => router.push(`/habits/${h.id}` as Href)} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
               <Card style={styles.habitRow}>
                 <Ionicons name={h.icon as never} size={22} color={done ? c.success : c.text} />
-                <View style={{ flex: 1, gap: 4 }}>
+                <View style={{ flex: 1, gap: 6 }}>
                   <Text style={[styles.habitName, { color: c.text }]}>{h.name}</Text>
                   {h.kind === 'count' ? (
                     <ProgressBar value={h.goal ? count / h.goal : 0} height={6} />
                   ) : (
                     <Text style={{ color: done ? c.success : c.textSecondary, fontSize: 12 }}>{done ? 'Done' : 'Not done'}</Text>
                   )}
+                  <View style={styles.dotsRow}>
+                    {week.map((d) => (
+                      <View
+                        key={d.key}
+                        style={[styles.dot, { backgroundColor: d.done ? c.success : 'transparent', borderColor: d.done ? c.success : c.border }]}
+                      />
+                    ))}
+                    {streak > 0 ? <Text style={[styles.streak, { color: c.textSecondary }]}>🔥 {streak}</Text> : null}
+                  </View>
                 </View>
                 {h.kind === 'count' ? <Text style={[styles.habitCount, { color: c.textSecondary }]}>{count}/{h.goal}</Text> : null}
                 <Pressable
@@ -137,6 +150,9 @@ const styles = StyleSheet.create({
   habitRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   habitName: { fontSize: 16, fontWeight: '600' },
   habitCount: { fontSize: 13, fontWeight: '600' },
+  dotsRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 1 },
+  dot: { width: 9, height: 9, borderRadius: Radius.full, borderWidth: StyleSheet.hairlineWidth },
+  streak: { fontSize: 12, fontWeight: '600', marginLeft: 4 },
   quick: { width: 40, height: 40, borderRadius: Radius.full, alignItems: 'center', justifyContent: 'center' },
   checkItem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   muted: { fontSize: 14 },
