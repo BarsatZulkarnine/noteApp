@@ -39,10 +39,12 @@ export default function TodayScreen() {
         <Text style={[styles.date, { color: c.textSecondary }]}>{format(new Date(), 'EEEE, MMMM d')}</Text>
 
         {/* Habits */}
-        <Pressable onPress={() => router.push('/habits' as Href)} style={styles.sectionHead}>
+        <View style={styles.sectionHead}>
           <SectionLabel>Habits</SectionLabel>
-          <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
-        </Pressable>
+          <Pressable onPress={() => router.push('/habits/new' as Href)} hitSlop={8} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
+            <Ionicons name="add-circle-outline" size={22} color={c.tint} />
+          </Pressable>
+        </View>
         {habits.map((h) => {
           const count = h.byDate[today] ?? 0;
           const done = h.kind === 'check' ? count >= 1 : count >= h.goal;

@@ -40,7 +40,7 @@ export default function RootLayout() {
             <Stack.Screen name="grocery/[id]" options={{ title: 'Item' }} />
             <Stack.Screen name="shopping" options={{ title: 'Shopping' }} />
             <Stack.Screen name="scan" options={{ title: 'Scan barcode' }} />
-            <Stack.Screen name="habits/index" options={{ title: 'Habits' }} />
+            <Stack.Screen name="habits/new" options={{ title: 'New habit', presentation: 'modal' }} />
             <Stack.Screen name="habits/[id]" options={{ title: 'Habit' }} />
             <Stack.Screen name="search" options={{ title: 'Search', presentation: 'modal' }} />
           </Stack>
