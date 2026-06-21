@@ -11,15 +11,14 @@ import {
   TextInput,
   TextInputProps,
   TextStyle,
-  useColorScheme,
   View,
   ViewStyle,
 } from 'react-native';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { useResolvedScheme } from '@/hooks/use-scheme';
 
 export function useColors() {
-  const scheme = useColorScheme();
-  return Colors[scheme === 'dark' ? 'dark' : 'light'];
+  return Colors[useResolvedScheme()];
 }
 
 export function ScreenTitle({ children, right }: { children: ReactNode; right?: ReactNode }) {

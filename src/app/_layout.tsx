@@ -1,18 +1,18 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ToastHost } from '@/components/toast';
+import { useResolvedScheme } from '@/hooks/use-scheme';
 import { setupNotifications } from '@/lib/notifications';
 import { useGroceryStore } from '@/store/groceryStore';
 import { useHabitsStore } from '@/store/habitsStore';
 import { useTodosStore } from '@/store/todosStore';
 
 export default function RootLayout() {
-  const scheme = useColorScheme();
+  const scheme = useResolvedScheme();
   const reconcile = useTodosStore((s) => s.reconcile);
   const syncHabits = useHabitsStore((s) => s.syncReminders);
   const reconcilePredictions = useGroceryStore((s) => s.reconcilePredictions);
@@ -45,7 +45,7 @@ export default function RootLayout() {
             <Stack.Screen name="search" options={{ title: 'Search', presentation: 'modal' }} />
           </Stack>
           <ToastHost />
-          <StatusBar style="auto" />
+          <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
         </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
