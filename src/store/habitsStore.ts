@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { dateKey } from '@/lib/date';
+import { applyDecrement, applyIncrement, applyToggle } from '@/lib/habit-mutations';
 import { uid } from '@/lib/id';
 import { cancelReminders, scheduleIntervalReminders } from '@/lib/notifications';
 import type { Habit, HabitKind, HabitReminders } from '@/lib/types';
@@ -39,11 +40,6 @@ type HabitsState = {
   syncReminders: () => Promise<void>;
 };
 
-const setDay = (h: Habit, value: number): Habit => ({
-  ...h,
-  byDate: { ...h.byDate, [dateKey()]: Math.max(0, value) },
-});
-
 export const useHabitsStore = create<HabitsState>()(
   persist(
     (set, get) => ({
@@ -74,17 +70,17 @@ export const useHabitsStore = create<HabitsState>()(
 
       increment: (id) =>
         set((s) => ({
-          habits: s.habits.map((h) => (h.id === id ? setDay(h, (h.byDate[dateKey()] ?? 0) + 1) : h)),
+          habits: s.habits.map((h) => (h.id === id ? applyIncrement(h, dateKey()) : h)),
         })),
 
       decrement: (id) =>
         set((s) => ({
-          habits: s.habits.map((h) => (h.id === id ? setDay(h, (h.byDate[dateKey()] ?? 0) - 1) : h)),
+          habits: s.habits.map((h) => (h.id === id ? applyDecrement(h, dateKey()) : h)),
         })),
 
       toggleCheck: (id) =>
         set((s) => ({
-          habits: s.habits.map((h) => (h.id === id ? setDay(h, (h.byDate[dateKey()] ?? 0) >= 1 ? 0 : 1) : h)),
+          habits: s.habits.map((h) => (h.id === id ? applyToggle(h, dateKey()) : h)),
         })),
 
       deleteHabit: async (id) => {
