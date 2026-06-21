@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 
 import { Pill, useColors } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
+import { haptics } from '@/lib/haptics';
 import type { HabitKind } from '@/lib/types';
 import { useHabitsStore } from '@/store/habitsStore';
 
@@ -50,6 +51,7 @@ export default function NewHabit() {
   const canAdd = name.trim().length > 0;
 
   const applyPreset = (p: Preset) => {
+    haptics.select();
     setName(p.name);
     setKind(p.kind);
     setIcon(p.icon);
@@ -59,6 +61,7 @@ export default function NewHabit() {
   };
 
   const setKindManual = (k: HabitKind) => {
+    haptics.select();
     setKind(k);
     setActivePreset(null);
     if (k === 'check') {
@@ -138,7 +141,7 @@ export default function NewHabit() {
             return (
               <Pressable
                 key={g}
-                onPress={() => { setIcon(g); setActivePreset(null); }}
+                onPress={() => { haptics.select(); setIcon(g); setActivePreset(null); }}
                 style={[styles.iconCell, { backgroundColor: active ? c.tint : c.card, borderColor: active ? c.tint : c.border }]}
               >
                 <Ionicons name={g as never} size={22} color={active ? c.onTint : c.text} />

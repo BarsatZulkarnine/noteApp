@@ -6,6 +6,7 @@ import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { Card, IconButton, ProgressBar, SectionLabel, useColors, WeekBars } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { dateKey } from '@/lib/date';
+import { haptics } from '@/lib/haptics';
 import { currentStreak } from '@/lib/streak';
 import { useHabitsStore } from '@/store/habitsStore';
 
@@ -45,6 +46,10 @@ export default function HabitDetail() {
 
   const count = habit.byDate[dateKey()] ?? 0;
   const isCheck = habit.kind === 'check';
+
+  const onInc = () => { increment(habit.id); if (count + 1 >= habit.goal) haptics.success(); else haptics.light(); };
+  const onDec = () => { decrement(habit.id); haptics.light(); };
+  const onToggle = () => { toggleCheck(habit.id); if (count >= 1) haptics.light(); else haptics.success(); };
   const metDates = Object.entries(habit.byDate).filter(([, v]) => v >= habit.goal).map(([k]) => k);
   const streak = currentStreak(metDates);
 
@@ -82,15 +87,15 @@ export default function HabitDetail() {
         <View style={styles.btnRow}>
           {isCheck ? (
             <View style={[styles.bigAdd, { backgroundColor: count >= 1 ? c.success : c.tint }]}>
-              <IconButton name={count >= 1 ? 'checkmark-done' : 'checkmark'} size={28} color={c.onTint} onPress={() => toggleCheck(habit.id)} />
+              <IconButton name={count >= 1 ? 'checkmark-done' : 'checkmark'} size={28} color={c.onTint} onPress={onToggle} />
             </View>
           ) : (
             <>
               <View style={[styles.stepBtn, { borderColor: c.border }]}>
-                <IconButton name="remove" size={26} color={c.text} onPress={() => decrement(habit.id)} />
+                <IconButton name="remove" size={26} color={c.text} onPress={onDec} />
               </View>
               <View style={[styles.bigAdd, { backgroundColor: c.tint }]}>
-                <IconButton name="add" size={28} color={c.onTint} onPress={() => increment(habit.id)} />
+                <IconButton name="add" size={28} color={c.onTint} onPress={onInc} />
               </View>
             </>
           )}

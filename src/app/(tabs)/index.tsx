@@ -3,11 +3,14 @@ import { format } from 'date-fns';
 import { type Href, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeInUp, LinearTransition } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Pop } from '@/components/pop';
 import { Card, IconButton, ProgressBar, ScreenTitle, SectionLabel, useColors } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { dateKey } from '@/lib/date';
+import { haptics } from '@/lib/haptics';
 import { buildReminders, type ReminderTone } from '@/lib/reminders';
 import { currentStreak, lastNDays } from '@/lib/streak';
 import { useGroceryStore } from '@/store/groceryStore';
@@ -40,6 +43,24 @@ export default function TodayScreen() {
   );
   const toneColor = (tone: ReminderTone) => (tone === 'danger' ? c.danger : tone === 'warning' ? c.warning : c.textSecondary);
 
+  const toggleReminders = () => {
+    haptics.select();
+    setRemindersOpen((v) => !v);
+  };
+
+  const onQuickHabit = (h: (typeof habits)[number]) => {
+    const cur = h.byDate[today] ?? 0;
+    if (h.kind === 'check') {
+      toggleCheck(h.id);
+      if (cur >= 1) haptics.light();
+      else haptics.success();
+    } else {
+      increment(h.id);
+      if (cur + 1 >= h.goal) haptics.success();
+      else haptics.light();
+    }
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: c.background, paddingTop: insets.top }]}>
       <ScreenTitle right={<IconButton name="search" onPress={() => router.push('/search')} />}>Today</ScreenTitle>
@@ -48,8 +69,8 @@ export default function TodayScreen() {
 
         {/* Reminders */}
         {reminders.length > 0 ? (
-          <Card style={{ gap: Spacing.two, paddingVertical: Spacing.two }}>
-            <Pressable onPress={() => setRemindersOpen((v) => !v)} style={styles.remHead} hitSlop={6}>
+          <Animated.View layout={LinearTransition.duration(200)} style={[styles.remCard, { backgroundColor: c.card, borderColor: c.border }]}>
+            <Pressable onPress={toggleReminders} style={styles.remHead} hitSlop={6}>
               <Ionicons name="notifications-outline" size={18} color={c.text} />
               <Text style={[styles.remTitle, { color: c.text }]}>Reminders</Text>
               <View style={[styles.remBadge, { backgroundColor: c.tint }]}>
@@ -59,19 +80,21 @@ export default function TodayScreen() {
               <Ionicons name={remindersOpen ? 'chevron-up' : 'chevron-down'} size={18} color={c.textMuted} />
             </Pressable>
             {remindersOpen
-              ? reminders.map((r) => (
-                  <Pressable key={r.id} onPress={() => router.push(r.href as Href)} style={({ pressed }) => [styles.remRow, { opacity: pressed ? 0.6 : 1 }]}>
-                    <Ionicons name={r.icon as never} size={18} color={toneColor(r.tone)} />
-                    <Text style={[styles.remText, { color: c.text }]} numberOfLines={1}>{r.text}</Text>
-                    <Ionicons name="chevron-forward" size={15} color={c.textMuted} />
-                  </Pressable>
+              ? reminders.map((r, i) => (
+                  <Animated.View key={r.id} entering={FadeInUp.duration(160).delay(i * 28)}>
+                    <Pressable onPress={() => router.push(r.href as Href)} style={({ pressed }) => [styles.remRow, { opacity: pressed ? 0.6 : 1 }]}>
+                      <Ionicons name={r.icon as never} size={18} color={toneColor(r.tone)} />
+                      <Text style={[styles.remText, { color: c.text }]} numberOfLines={1}>{r.text}</Text>
+                      <Ionicons name="chevron-forward" size={15} color={c.textMuted} />
+                    </Pressable>
+                  </Animated.View>
                 ))
               : (
                 <Text style={[styles.remPreview, { color: c.textSecondary }]} numberOfLines={1}>
                   {reminders[0].text}{reminders.length > 1 ? ` · +${reminders.length - 1} more` : ''}
                 </Text>
               )}
-          </Card>
+          </Animated.View>
         ) : null}
 
         {/* Habits */}
@@ -109,13 +132,13 @@ export default function TodayScreen() {
                   </View>
                 </View>
                 {h.kind === 'count' ? <Text style={[styles.habitCount, { color: c.textSecondary }]}>{count}/{h.goal}</Text> : null}
-                <Pressable
-                  onPress={() => (h.kind === 'check' ? toggleCheck(h.id) : increment(h.id))}
+                <Pop
+                  onPress={() => onQuickHabit(h)}
                   style={[styles.quick, { backgroundColor: done && h.kind === 'check' ? c.success : c.tint }]}
                   hitSlop={6}
                 >
                   <Ionicons name={h.kind === 'check' ? (done ? 'checkmark' : 'checkmark-outline') : 'add'} size={20} color={c.onTint} />
-                </Pressable>
+                </Pop>
               </Card>
             </Pressable>
           );
@@ -188,6 +211,7 @@ const styles = StyleSheet.create({
   habitRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   habitName: { fontSize: 16, fontWeight: '600' },
   habitCount: { fontSize: 13, fontWeight: '600' },
+  remCard: { borderRadius: Radius.md, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, gap: Spacing.two, overflow: 'hidden' },
   remHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   remTitle: { fontSize: 15, fontWeight: '700' },
   remBadge: { minWidth: 20, height: 20, borderRadius: Radius.full, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center' },
