@@ -7,6 +7,8 @@ import Animated, { FadeInUp, LinearTransition } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Pop } from '@/components/pop';
+import { SwipeRow } from '@/components/swipe-row';
+import { toast } from '@/components/toast';
 import { Card, IconButton, ProgressBar, ScreenTitle, SectionLabel, useColors } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { dateKey } from '@/lib/date';
@@ -30,6 +32,8 @@ export default function TodayScreen() {
   const habits = useHabitsStore((s) => s.habits);
   const increment = useHabitsStore((s) => s.increment);
   const toggleCheck = useHabitsStore((s) => s.toggleCheck);
+  const deleteHabit = useHabitsStore((s) => s.deleteHabit);
+  const restoreHabit = useHabitsStore((s) => s.restoreHabit);
 
   const [remindersOpen, setRemindersOpen] = useState(false);
 
@@ -46,6 +50,12 @@ export default function TodayScreen() {
   const toggleReminders = () => {
     haptics.select();
     setRemindersOpen((v) => !v);
+  };
+
+  const removeHabit = (h: (typeof habits)[number]) => {
+    deleteHabit(h.id);
+    haptics.light();
+    toast('Habit deleted', 'Undo', () => restoreHabit(h));
   };
 
   const onQuickHabit = (h: (typeof habits)[number]) => {
@@ -111,7 +121,8 @@ export default function TodayScreen() {
           const streak = currentStreak(metDates);
           const week = lastNDays(metDates, 7);
           return (
-            <Pressable key={h.id} onPress={() => router.push(`/habits/${h.id}` as Href)} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
+            <SwipeRow key={h.id} onDelete={() => removeHabit(h)}>
+              <Pressable onPress={() => router.push(`/habits/${h.id}` as Href)} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
               <Card style={styles.habitRow}>
                 <Ionicons name={h.icon as never} size={22} color={done ? c.success : c.text} />
                 <View style={{ flex: 1, gap: 6 }}>
@@ -140,7 +151,8 @@ export default function TodayScreen() {
                   <Ionicons name={h.kind === 'check' ? (done ? 'checkmark' : 'checkmark-outline') : 'add'} size={20} color={c.onTint} />
                 </Pop>
               </Card>
-            </Pressable>
+              </Pressable>
+            </SwipeRow>
           );
         })}
 
