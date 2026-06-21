@@ -116,6 +116,18 @@ export type Habit = {
   createdAt: number;
 };
 
+/** A logged grocery event — the source of truth for restock prediction. */
+export type PantryEventKind = 'purchase' | 'ranout' | 'low' | 'remaining';
+
+export type PantryEvent = {
+  id: string;
+  kind: PantryEventKind;
+  /** Epoch ms when it happened. */
+  at: number;
+  /** For 'purchase' = amount bought; for 'remaining' = amount left. In the item's `unit`. */
+  qty?: number;
+};
+
 export type GroceryItem = {
   id: string;
   name: string;
@@ -131,6 +143,23 @@ export type GroceryItem = {
   expiryReminderId?: string;
   /** Optional note, e.g. preferred brand. */
   restockNote?: string;
+
+  // --- Predictive restock (added v1 of the prediction feature) ---
+  /** Known barcodes that resolve to this item (a merged item accumulates several). */
+  barcodes?: string[];
+  /** Consumption unit, e.g. "dozen", "loaf", "L", "kg". Guards merges. */
+  unit?: string;
+  /** Purchase / ran-out / remaining log driving the prediction. */
+  events?: PantryEvent[];
+  /** Seed consumption estimate (units/day), used until real cycles exist. */
+  initialRatePerDay?: number;
+  /** Buy-by buffer in days before the predicted run-out (default 2). */
+  leadTimeDays?: number;
+  /** Cached predicted run-out time (epoch ms); recomputed on reconcile. */
+  predictedRunOutAt?: number;
+  /** OS notification id for the "running low" restock alert. */
+  restockNotificationId?: string;
+
   createdAt: number;
   updatedAt: number;
 };
