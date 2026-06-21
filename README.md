@@ -1,56 +1,94 @@
-# Welcome to your Expo app 👋
+# Notes & Pantry
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A personal, single-user **note-taking app** for Android (built with Expo / React Native).
+Notes are the heart of it; on top of that it adds **recurring todos with scheduled reminders**
+and a dedicated **Grocery / Restock** screen.
 
-## Get started
+All data is stored **locally on the device** (AsyncStorage) — no account, no server, no sync.
 
-1. Install dependencies
+## Features
 
-   ```bash
-   npm install
-   ```
+- **Notes** — free-text notes and checklist notes. Tap **+** to create; long-press a note to delete.
+- **Todos** — recurring routines (daily / weekly / every-N-days) at a chosen time. Each fires a
+  **local notification** when due and its checklist **auto-resets**. Tap the ↻ button to reset manually.
+- **Grocery** — your pantry list. Tap the circle to flag an item **running low**; the
+  **"Need to restock"** filter shows just those, as a ready shopping list.
 
-2. Start the app
+## Tech
 
-   ```bash
-   npx expo start
-   ```
+- Expo SDK 56, React Native, TypeScript, expo-router (file-based routing in `src/app`)
+- Zustand + AsyncStorage for local persistence (`src/store`)
+- expo-notifications for scheduled reminders (`src/lib/notifications.ts`)
+- date-fns for recurrence math (`src/lib/recurrence.ts`)
 
-In the output, you'll find options to open the app in a
+## Project layout
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+src/app/                 # screens (expo-router)
+  _layout.tsx            # root: notifications setup + overdue reconcile
+  (tabs)/                # Notes | Todos | Grocery tab bar
+  note/[id].tsx          # note editor (text or checklist)
+  todo/[id].tsx          # recurring-todo editor (schedule + reminders)
+src/store/               # notesStore, todosStore, groceryStore (Zustand)
+src/lib/                 # notifications, recurrence, types, id
+src/components/ui.tsx    # shared UI primitives
+src/constants/theme.ts   # colors / spacing
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Development
 
-### Other setup steps
+Requires **Node.js** (already installed).
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+```bash
+npm install
+npx expo start          # then press 'a' for Android, or scan the QR with Expo Go
+```
 
-## Learn more
+> Note: scheduled local notifications require a real dev build or the installed APK —
+> they don't fire inside Expo Go reliably. The rest of the app works in Expo Go.
 
-To learn more about developing your project with Expo, look at the following resources:
+## Building the installable APK (local, no cloud account)
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+Prerequisites (installed during setup):
 
-## Join the community
+- **JDK 17** (Temurin) — `JAVA_HOME` set to its folder.
+- **Android SDK** at `%LOCALAPPDATA%\Android\Sdk` — `ANDROID_HOME` set, with
+  `platform-tools`, `platforms;android-36`, `build-tools;36.0.0`, and the NDK that RN requires.
 
-Join our community of developers creating universal apps.
+### 1. Generate the native android/ project
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+```bash
+npx expo prebuild --platform android
+```
+
+### 2a. Debug APK (quickest — installable, but larger/slower)
+
+```bash
+cd android
+./gradlew assembleDebug
+# → android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+### 2b. Release APK (smaller, production build)
+
+Generate a signing keystore once:
+
+```bash
+keytool -genkeypair -v -keystore release.keystore -alias app \
+  -keyalg RSA -keysize 2048 -validity 10000
+```
+
+Add the signing config to `android/gradle.properties` and `android/app/build.gradle`,
+then:
+
+```bash
+cd android
+./gradlew assembleRelease
+# → android/app/build/outputs/apk/release/app-release.apk
+```
+
+### 3. Install on your phone
+
+Copy the `.apk` to the phone (USB / Google Drive), open it, and allow
+"install from unknown sources". Grant the notification permission on first launch so
+reminders work.

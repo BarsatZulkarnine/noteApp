@@ -1,15 +1,48 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+import { ToastHost } from '@/components/toast';
+import { setupNotifications } from '@/lib/notifications';
+import { useHabitsStore } from '@/store/habitsStore';
+import { useTodosStore } from '@/store/todosStore';
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+export default function RootLayout() {
+  const scheme = useColorScheme();
+  const reconcile = useTodosStore((s) => s.reconcile);
+  const syncHabits = useHabitsStore((s) => s.syncReminders);
+
+  useEffect(() => {
+    // Ask for permission, reset overdue recurring todos, re-arm reminders.
+    (async () => {
+      await setupNotifications();
+      await reconcile();
+      await syncHabits();
+    })();
+  }, [reconcile, syncHabits]);
+
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
+          <Stack>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="note/[id]" options={{ title: 'Note' }} />
+            <Stack.Screen name="sketch/[id]" options={{ title: 'Draw' }} />
+            <Stack.Screen name="todo/[id]" options={{ title: 'Recurring todo' }} />
+            <Stack.Screen name="grocery/[id]" options={{ title: 'Item' }} />
+            <Stack.Screen name="shopping" options={{ title: 'Shopping' }} />
+            <Stack.Screen name="habits/index" options={{ title: 'Habits' }} />
+            <Stack.Screen name="habits/[id]" options={{ title: 'Habit' }} />
+            <Stack.Screen name="search" options={{ title: 'Search', presentation: 'modal' }} />
+          </Stack>
+          <ToastHost />
+          <StatusBar style="auto" />
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

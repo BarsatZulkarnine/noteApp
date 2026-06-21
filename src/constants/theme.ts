@@ -1,48 +1,51 @@
 /**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
+ * Monochrome "ink & paper" palette. The accent (`tint`) is ink itself —
+ * near-black in light mode, near-white in dark mode. Status colors are kept muted.
+ * `onTint` is the color to draw on top of a `tint`-filled surface (button labels, FAB icon).
  */
-
-import '@/global.css';
 
 import { Platform } from 'react-native';
 
 export const Colors = {
   light: {
-    text: '#000000',
-    background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
+    text: '#0A0A0A',
+    textSecondary: '#71717A',
+    textMuted: '#A1A1AA',
+    background: '#FBFBFA',
+    card: '#FFFFFF',
+    backgroundElement: '#F3F3F1',
+    backgroundSelected: '#E8E8E5',
+    border: '#E6E6E3',
+    tint: '#111111',
+    tintSoft: '#ECECEA',
+    onTint: '#FFFFFF',
+    danger: '#B42318',
+    warning: '#B45309',
+    success: '#15803D',
   },
   dark: {
-    text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
+    text: '#F5F5F4',
+    textSecondary: '#A1A1AA',
+    textMuted: '#6B6B70',
+    background: '#0A0A0A',
+    card: '#161616',
+    backgroundElement: '#1E1E1E',
+    backgroundSelected: '#2A2A2A',
+    border: '#262626',
+    tint: '#FAFAF9',
+    tintSoft: '#1F1F1F',
+    onTint: '#0A0A0A',
+    danger: '#F97066',
+    warning: '#FDB022',
+    success: '#4ADE80',
   },
 } as const;
 
 export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
 
 export const Fonts = Platform.select({
-  ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
-    serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
-    rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
-    mono: 'ui-monospace',
-  },
-  default: {
-    sans: 'normal',
-    serif: 'serif',
-    rounded: 'normal',
-    mono: 'monospace',
-  },
+  ios: { sans: 'system-ui', serif: 'ui-serif', rounded: 'ui-rounded', mono: 'ui-monospace' },
+  default: { sans: 'normal', serif: 'serif', rounded: 'normal', mono: 'monospace' },
   web: {
     sans: 'var(--font-display)',
     serif: 'var(--font-serif)',
@@ -61,5 +64,21 @@ export const Spacing = {
   six: 64,
 } as const;
 
-export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
-export const MaxContentWidth = 800;
+export const Radius = {
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 22,
+  full: 999,
+} as const;
+
+/** Muted color labels for notes — the one place we allow color in the monochrome UI. */
+export const LABEL_COLORS = {
+  red: '#D4604F',
+  amber: '#C98A2B',
+  green: '#4F9D69',
+  blue: '#4F86C9',
+  purple: '#8A6BC9',
+} as const;
+
+export type LabelColorKey = keyof typeof LABEL_COLORS;
