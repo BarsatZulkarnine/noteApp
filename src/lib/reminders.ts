@@ -31,11 +31,21 @@ export type ReminderSources = {
   habits: Habit[];
 };
 
+export type ReminderOptions = {
+  /** Include "Restock X" grocery alerts. Off on the Today screen, where the
+   *  dedicated Restock card already surfaces them; on by default elsewhere. */
+  includeRestock?: boolean;
+};
+
 /**
  * Build the reminder list, most-urgent first (expired/overdue → due soon → nudges).
  * Each grocery item yields at most one expiry and one restock reminder.
  */
-export function buildReminders({ todos, grocery, habits }: ReminderSources, now: number): Reminder[] {
+export function buildReminders(
+  { todos, grocery, habits }: ReminderSources,
+  now: number,
+  { includeRestock = true }: ReminderOptions = {},
+): Reminder[] {
   const today = dateKey(new Date(now));
   const out: Reminder[] = [];
 
@@ -65,7 +75,7 @@ export function buildReminders({ todos, grocery, habits }: ReminderSources, now:
         out.push({ id: `exp:${g.id}`, icon: 'hourglass-outline', text: `${g.name} expires ${when}`, tone: 'warning', href: `/grocery/${g.id}` });
       }
     }
-    if (g.low || isDuePrediction(g, now)) {
+    if (includeRestock && (g.low || isDuePrediction(g, now))) {
       out.push({ id: `low:${g.id}`, icon: 'cart-outline', text: `Restock ${g.name}`, tone: 'warning', href: `/grocery/${g.id}` });
     }
   }

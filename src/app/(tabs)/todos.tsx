@@ -1,13 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
-import { format, isPast } from 'date-fns';
+import { format } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SwipeRow } from '@/components/swipe-row';
 import { toast } from '@/components/toast';
-import { Card, Checkbox, EmptyState, Fab, IconButton, ScreenTitle, useColors } from '@/components/ui';
+import { Card, Checkbox, EmptyState, Fab, ScreenTitle, useColors } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
+import { dateKey } from '@/lib/date';
 import { describeRecurrence } from '@/lib/recurrence';
 import { currentStreak, lastNDays } from '@/lib/streak';
 import type { RecurringTodo } from '@/lib/types';
@@ -38,7 +39,8 @@ export default function TodosScreen() {
   const restoreTodo = useTodosStore((s) => s.restoreTodo);
   const markDone = useTodosStore((s) => s.markDone);
   const updateTodo = useTodosStore((s) => s.updateTodo);
-  const snooze = useTodosStore((s) => s.snooze);
+  const toggleItem = useTodosStore((s) => s.toggleItem);
+  const today = dateKey();
 
   const create = async () => {
     const id = await addTodo({
@@ -74,6 +76,8 @@ export default function TodosScreen() {
           const done = item.items.filter((i) => i.done).length;
           const streak = item.kind === 'recurring' ? currentStreak(item.completedDates) : 0;
           const oneoffDone = item.kind === 'oneoff' && item.completed;
+          const doneToday = item.kind === 'oneoff' ? item.completed : item.completedDates.includes(today);
+          const shownItems = item.items.slice(0, 4);
           return (
             <SwipeRow onDelete={() => remove(item)}>
               <Pressable
@@ -127,12 +131,37 @@ export default function TodosScreen() {
                   {item.kind === 'recurring' ? <StreakDots dates={item.completedDates} /> : null}
 
                   {item.items.length > 0 ? (
-                    <Text style={[styles.progress, { color: done === item.items.length ? c.success : c.textSecondary }]}>
-                      {done}/{item.items.length} done
-                    </Text>
+                    <View style={styles.subtasks}>
+                      {shownItems.map((it) => (
+                        <Pressable
+                          key={it.id}
+                          onPress={() => toggleItem(item.id, it.id)}
+                          hitSlop={6}
+                          style={styles.subRow}
+                        >
+                          <Checkbox checked={it.done} />
+                          <Text
+                            style={[styles.subText, { color: it.done ? c.textMuted : c.text, textDecorationLine: it.done ? 'line-through' : 'none' }]}
+                            numberOfLines={1}
+                          >
+                            {it.text}
+                          </Text>
+                        </Pressable>
+                      ))}
+                      {item.items.length > shownItems.length ? (
+                        <Text style={[styles.meta, { color: c.textSecondary }]}>
+                          +{item.items.length - shownItems.length} more · {done}/{item.items.length} done
+                        </Text>
+                      ) : null}
+                    </View>
                   ) : null}
 
-                  {!oneoffDone ? (
+                  {doneToday ? (
+                    <View style={styles.doneTag}>
+                      <Ionicons name="checkmark-circle" size={16} color={c.success} />
+                      <Text style={[styles.actionText, { color: c.success }]}>Done today</Text>
+                    </View>
+                  ) : (
                     <View style={styles.actions}>
                       <Pressable
                         onPress={() => markDone(item.id)}
@@ -143,20 +172,8 @@ export default function TodosScreen() {
                           {item.kind === 'oneoff' ? 'Complete' : 'Done today'}
                         </Text>
                       </Pressable>
-                      {item.remindersEnabled && (item.kind === 'recurring' || (item.dueAt && !isPast(item.dueAt))) ? (
-                        <Pressable
-                          onPress={() => {
-                            snooze(item.id, 60);
-                            toast('Snoozed 1 hour');
-                          }}
-                          style={[styles.actionBtn, styles.actionGhost, { borderColor: c.border }]}
-                        >
-                          <Ionicons name="alarm-outline" size={16} color={c.text} />
-                          <Text style={[styles.actionText, { color: c.text }]}>Snooze 1h</Text>
-                        </Pressable>
-                      ) : null}
                     </View>
-                  ) : null}
+                  )}
                 </Card>
               </Pressable>
             </SwipeRow>
@@ -178,9 +195,11 @@ const styles = StyleSheet.create({
   streak: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   meta: { fontSize: 14 },
-  progress: { fontSize: 13, fontWeight: '600' },
   dots: { flexDirection: 'row', gap: 4, marginTop: 2 },
   dot: { width: 16, height: 16, borderRadius: 4 },
+  subtasks: { gap: Spacing.one, marginTop: Spacing.half },
+  subRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  subText: { flex: 1, fontSize: 15 },
   actions: { flexDirection: 'row', gap: Spacing.two, marginTop: Spacing.one },
   actionBtn: {
     flexDirection: 'row',
@@ -190,6 +209,6 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
     borderRadius: 10,
   },
-  actionGhost: { borderWidth: StyleSheet.hairlineWidth },
+  doneTag: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: Spacing.one },
   actionText: { fontSize: 13, fontWeight: '700' },
 });

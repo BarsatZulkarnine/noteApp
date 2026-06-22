@@ -31,10 +31,8 @@ type TodosState = {
   addItem: (id: string, text: string) => void;
   deleteItem: (id: string, itemId: string) => void;
   resetTodo: (id: string) => void;
-  /** Mark done for today: records a streak day + resets (recurring) or completes (oneoff). */
+  /** Mark done for today: records a streak day, marks steps complete, advances to next occurrence. */
   markDone: (id: string) => Promise<void>;
-  /** Push the next reminder out by N minutes. */
-  snooze: (id: string, minutes: number) => Promise<void>;
   /** Reset overdue recurring todos and re-arm reminders. Call on app start. */
   reconcile: () => Promise<void>;
 };
@@ -123,14 +121,20 @@ export const useTodosStore = create<TodosState>()(
         set((s) => ({ todos: [{ ...todo, notificationId }, ...s.todos] }));
       },
 
-      toggleItem: (id, itemId) =>
+      toggleItem: (id, itemId) => {
         set((s) => ({
           todos: replace(s.todos, id, (t) => ({
             ...t,
             items: t.items.map((it) => (it.id === itemId ? { ...it, done: !it.done } : it)),
             updatedAt: Date.now(),
           })),
-        })),
+        }));
+        // Checking off the last sub-task completes the todo for today.
+        const t = get().todos.find((x) => x.id === id);
+        if (!t || t.items.length === 0 || !t.items.every((it) => it.done)) return;
+        const alreadyDone = t.kind === 'oneoff' ? t.completed : t.completedDates.includes(dateKey());
+        if (!alreadyDone) void get().markDone(id);
+      },
 
       addItem: (id, text) =>
         set((s) => ({
@@ -180,28 +184,18 @@ export const useTodosStore = create<TodosState>()(
           }));
           return;
         }
+        if (prev.completedDates.includes(today)) return; // already done today — don't double-advance
         set((s) => ({
           todos: replace(s.todos, id, (t) => ({
             ...t,
-            completedDates: t.completedDates.includes(today)
-              ? t.completedDates
-              : [...t.completedDates, today],
-            items: t.items.map((it) => ({ ...it, done: false })),
+            completedDates: [...t.completedDates, today],
+            // Mark every step done so the completed checklist stays visible; the
+            // fresh reset happens at the next occurrence via reconcile().
+            items: t.items.map((it) => ({ ...it, done: true })),
             lastResetAt: Date.now(),
             nextDueAt: computeNextDue(t.recurrence).getTime(),
             updatedAt: Date.now(),
           })),
-        }));
-      },
-
-      snooze: async (id, minutes) => {
-        const prev = get().todos.find((t) => t.id === id);
-        if (!prev) return;
-        const when = Date.now() + minutes * 60 * 1000;
-        await cancelReminder(prev.notificationId);
-        const notificationId = await scheduleOneOff(when, prev.title || 'Reminder', 'Snoozed reminder.');
-        set((s) => ({
-          todos: replace(s.todos, id, (t) => ({ ...t, nextDueAt: when, notificationId, updatedAt: Date.now() })),
         }));
       },
 

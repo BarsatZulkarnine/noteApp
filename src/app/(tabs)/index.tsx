@@ -38,7 +38,7 @@ export default function TodayScreen() {
   const today = dateKey();
   const dueToday = todos.filter((t) => dateKey(new Date(t.nextDueAt)) === today && !(t.kind === 'oneoff' && t.completed));
   const reminders = useMemo(
-    () => buildReminders({ todos, grocery: groceryItems, habits }, Date.now()),
+    () => buildReminders({ todos, grocery: groceryItems, habits }, Date.now(), { includeRestock: false }),
     [todos, groceryItems, habits],
   );
   const toneColor = (tone: ReminderTone) => (tone === 'danger' ? c.danger : tone === 'warning' ? c.warning : c.textSecondary);
@@ -67,33 +67,50 @@ export default function TodayScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={[styles.date, { color: c.textSecondary }]}>{format(new Date(), 'EEEE, MMMM d')}</Text>
 
-        {/* Reminders */}
-        {reminders.length > 0 ? (
-          <Animated.View layout={LinearTransition.duration(200)} style={[styles.remCard, { backgroundColor: c.card, borderColor: c.border }]}>
-            <Pressable onPress={toggleReminders} style={styles.remHead} hitSlop={6}>
+        {/* Reminders + Restock, side by side */}
+        <View style={styles.topRow}>
+          <Pressable
+            onPress={reminders.length > 0 ? toggleReminders : undefined}
+            style={({ pressed }) => [styles.tile, { backgroundColor: c.card, borderColor: c.border, opacity: pressed ? 0.7 : 1 }]}
+          >
+            <View style={styles.tileHead}>
               <Ionicons name="notifications-outline" size={18} color={c.text} />
-              <Text style={[styles.remTitle, { color: c.text }]}>Reminders</Text>
-              <View style={[styles.remBadge, { backgroundColor: c.tint }]}>
-                <Text style={[styles.remBadgeText, { color: c.onTint }]}>{reminders.length}</Text>
-              </View>
-              <View style={{ flex: 1 }} />
-              <Ionicons name={remindersOpen ? 'chevron-up' : 'chevron-down'} size={18} color={c.textMuted} />
-            </Pressable>
-            {remindersOpen
-              ? reminders.map((r, i) => (
-                  <Animated.View key={r.id} entering={FadeInUp.duration(160).delay(i * 28)}>
-                    <Pressable onPress={() => router.push(r.href as Href)} style={({ pressed }) => [styles.remRow, { opacity: pressed ? 0.6 : 1 }]}>
-                      <Ionicons name={r.icon as never} size={18} color={toneColor(r.tone)} />
-                      <Text style={[styles.remText, { color: c.text }]} numberOfLines={1}>{r.text}</Text>
-                      <Ionicons name="chevron-forward" size={15} color={c.textMuted} />
-                    </Pressable>
-                  </Animated.View>
-                ))
-              : (
-                <Text style={[styles.remPreview, { color: c.textSecondary }]} numberOfLines={1}>
-                  {reminders[0].text}{reminders.length > 1 ? ` · +${reminders.length - 1} more` : ''}
-                </Text>
-              )}
+              {reminders.length > 0 ? (
+                <Ionicons name={remindersOpen ? 'chevron-up' : 'chevron-down'} size={16} color={c.textMuted} />
+              ) : null}
+            </View>
+            <Text style={[styles.tileLabel, { color: c.textSecondary }]}>Reminders</Text>
+            <Text style={[styles.tileValue, { color: reminders.length ? c.text : c.textSecondary }]}>
+              {reminders.length ? `${reminders.length} to do` : 'All clear'}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => router.push('/grocery')}
+            style={({ pressed }) => [styles.tile, { backgroundColor: c.card, borderColor: c.border, opacity: pressed ? 0.7 : 1 }]}
+          >
+            <View style={styles.tileHead}>
+              <Ionicons name="cart-outline" size={18} color={c.text} />
+              <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
+            </View>
+            <Text style={[styles.tileLabel, { color: c.textSecondary }]}>Restock</Text>
+            <Text style={[styles.tileValue, { color: lowCount ? c.warning : c.textSecondary }]}>
+              {lowCount ? `${lowCount} low` : 'All good'}
+            </Text>
+          </Pressable>
+        </View>
+
+        {remindersOpen && reminders.length > 0 ? (
+          <Animated.View layout={LinearTransition.duration(200)} style={[styles.remCard, { backgroundColor: c.card, borderColor: c.border }]}>
+            {reminders.map((r, i) => (
+              <Animated.View key={r.id} entering={FadeInUp.duration(160).delay(i * 28)}>
+                <Pressable onPress={() => router.push(r.href as Href)} style={({ pressed }) => [styles.remRow, { opacity: pressed ? 0.6 : 1 }]}>
+                  <Ionicons name={r.icon as never} size={18} color={toneColor(r.tone)} />
+                  <Text style={[styles.remText, { color: c.text }]} numberOfLines={1}>{r.text}</Text>
+                  <Ionicons name="chevron-forward" size={15} color={c.textMuted} />
+                </Pressable>
+              </Animated.View>
+            ))}
           </Animated.View>
         ) : null}
 
@@ -104,6 +121,7 @@ export default function TodayScreen() {
             <Ionicons name="add-circle-outline" size={22} color={c.tint} />
           </Pressable>
         </View>
+        <View style={styles.habitList}>
         {habits.map((h) => {
           const count = h.byDate[today] ?? 0;
           const done = h.kind === 'check' ? count >= 1 : count >= h.goal;
@@ -143,17 +161,7 @@ export default function TodayScreen() {
             </Pressable>
           );
         })}
-
-        {/* Restock */}
-        <Pressable onPress={() => router.push('/grocery')} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
-          <Card style={styles.statRow}>
-            <View style={styles.rowCenter}>
-              <Ionicons name="cart-outline" size={20} color={c.text} />
-              <Text style={[styles.cardTitle, { color: c.text }]}>Restock</Text>
-            </View>
-            <Text style={[styles.bigStat, { color: lowCount ? c.warning : c.textSecondary }]}>{lowCount ? `${lowCount} low` : 'All good'}</Text>
-          </Card>
-        </Pressable>
+        </View>
 
         {/* Due today */}
         <SectionLabel>Due today</SectionLabel>
@@ -206,17 +214,16 @@ const styles = StyleSheet.create({
   rowCenter: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   cardTitle: { fontSize: 17, fontWeight: '700' },
   cardMeta: { fontSize: 14 },
-  statRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  bigStat: { fontSize: 18, fontWeight: '800' },
+  topRow: { flexDirection: 'row', gap: Spacing.two },
+  tile: { flex: 1, borderRadius: Radius.md, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: Spacing.three, paddingVertical: Spacing.three, gap: Spacing.one },
+  tileHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  tileLabel: { fontSize: 13, fontWeight: '600' },
+  tileValue: { fontSize: 18, fontWeight: '800' },
+  habitList: { gap: Spacing.two },
   habitRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   habitName: { fontSize: 16, fontWeight: '600' },
   habitCount: { fontSize: 13, fontWeight: '600' },
   remCard: { borderRadius: Radius.md, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, gap: Spacing.two, overflow: 'hidden' },
-  remHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  remTitle: { fontSize: 15, fontWeight: '700' },
-  remBadge: { minWidth: 20, height: 20, borderRadius: Radius.full, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center' },
-  remBadgeText: { fontSize: 12, fontWeight: '800' },
-  remPreview: { fontSize: 14 },
   remRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   remText: { flex: 1, fontSize: 15 },
   dotsRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 1 },
