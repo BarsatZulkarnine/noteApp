@@ -35,6 +35,8 @@ type HabitsState = {
   /** Toggle a 'check' habit done/undone for today. */
   toggleCheck: (id: string) => void;
   deleteHabit: (id: string) => Promise<void>;
+  /** Re-insert a deleted habit (for Undo), re-arming reminders if they were on. */
+  restoreHabit: (habit: Habit) => Promise<void>;
   setReminders: (id: string, patch: Partial<HabitReminders>) => Promise<void>;
   /** Re-arm reminder notifications on app start. */
   syncReminders: () => Promise<void>;
@@ -87,6 +89,19 @@ export const useHabitsStore = create<HabitsState>()(
         const prev = get().habits.find((h) => h.id === id);
         if (prev) await cancelReminders(prev.notificationIds);
         set((s) => ({ habits: s.habits.filter((h) => h.id !== id) }));
+      },
+
+      restoreHabit: async (habit) => {
+        if (get().habits.some((h) => h.id === habit.id)) return;
+        let restored = { ...habit, notificationIds: [] as string[] };
+        if (habit.reminders.enabled) {
+          restored.notificationIds = await scheduleIntervalReminders(
+            habit.reminders,
+            `${habit.name} reminder`,
+            habit.kind === 'count' ? `Log your ${habit.name.toLowerCase()}.` : `Time for ${habit.name.toLowerCase()}.`,
+          );
+        }
+        set((s) => ({ habits: [...s.habits, restored] }));
       },
 
       setReminders: async (id, patch) => {
