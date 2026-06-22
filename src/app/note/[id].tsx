@@ -4,13 +4,14 @@ import { Image } from 'expo-image';
 import { format } from 'date-fns';
 import { type Href, Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import {
   NestableDraggableFlatList,
   NestableScrollContainer,
   ScaleDecorator,
 } from 'react-native-draggable-flatlist';
 import Markdown from 'react-native-markdown-display';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SketchThumb } from '@/components/sketch-thumb';
 import { Checkbox, IconButton, Pill, SectionLabel, useColors } from '@/components/ui';
@@ -24,6 +25,7 @@ const COLOR_KEYS = Object.keys(LABEL_COLORS) as LabelColor[];
 export default function NoteEditor() {
   const c = useColors();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const note = useNotesStore((s) => s.notes.find((n) => n.id === id));
   const updateNote = useNotesStore((s) => s.updateNote);
@@ -44,6 +46,7 @@ export default function NoteEditor() {
   const [newItem, setNewItem] = useState('');
   const [newTag, setNewTag] = useState('');
   const [preview, setPreview] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
   const [picker, setPicker] = useState<'date' | 'time' | null>(null);
   const [pendingDate, setPendingDate] = useState<Date | null>(null);
 
@@ -123,8 +126,8 @@ export default function NoteEditor() {
     </ScaleDecorator>
   );
 
-  const Header = (
-    <View style={{ gap: Spacing.three }}>
+  const TitleBar = (
+    <View style={{ gap: Spacing.two }}>
       <TextInput
         value={note.title}
         onChangeText={(t) => updateNote(note.id, { title: t })}
@@ -132,7 +135,23 @@ export default function NoteEditor() {
         placeholderTextColor={c.textSecondary}
         style={[styles.title, { color: c.text }]}
       />
+      <View style={styles.toolbar}>
+        <Pressable
+          onPress={() => setShowDetails((v) => !v)}
+          style={({ pressed }) => [styles.detailsBtn, { borderColor: showDetails ? c.tint : c.border, opacity: pressed ? 0.6 : 1 }]}
+        >
+          <Ionicons name="options-outline" size={16} color={c.text} />
+          <Text style={[styles.detailsText, { color: c.text }]}>Details</Text>
+          <Ionicons name={showDetails ? 'chevron-up' : 'chevron-down'} size={14} color={c.textMuted} />
+        </Pressable>
+        <View style={{ flex: 1 }} />
+        {note.type === 'text' ? <Pill label={preview ? 'Edit' : 'Preview'} onPress={() => setPreview((v) => !v)} /> : null}
+      </View>
+    </View>
+  );
 
+  const Meta = (
+    <View style={{ gap: Spacing.three }}>
       <View style={styles.row}>
         <Pill label="Text" active={note.type === 'text'} onPress={() => updateNote(note.id, { type: 'text' })} />
         <Pill label="Checklist" active={note.type === 'checklist'} onPress={() => updateNote(note.id, { type: 'checklist' })} />
@@ -203,53 +222,11 @@ export default function NoteEditor() {
           ))}
         </View>
       ) : null}
-
-      {note.type === 'text' ? (
-        <>
-          <View style={styles.bodyHead}>
-            <SectionLabel>Body</SectionLabel>
-            <Pill label={preview ? 'Edit' : 'Preview'} onPress={() => setPreview((v) => !v)} />
-          </View>
-          {preview ? (
-            <View style={styles.previewBox}>
-              {note.body.trim() ? <Markdown style={mdStyles}>{note.body}</Markdown> : <Text style={{ color: c.textMuted }}>Nothing to preview.</Text>}
-            </View>
-          ) : (
-            <TextInput
-              value={note.body}
-              onChangeText={(t) => updateNote(note.id, { body: t })}
-              placeholder="Start writing… (markdown supported)"
-              placeholderTextColor={c.textSecondary}
-              multiline
-              style={[styles.body, { color: c.text }]}
-            />
-          )}
-        </>
-      ) : (
-        <SectionLabel>Checklist</SectionLabel>
-      )}
     </View>
   );
 
-  const Footer =
-    note.type === 'checklist' ? (
-      <View style={[styles.itemRow, { marginTop: Spacing.two }]}>
-        <Ionicons name="add" size={22} color={c.textSecondary} />
-        <TextInput
-          value={newItem}
-          onChangeText={setNewItem}
-          onSubmitEditing={submitItem}
-          blurOnSubmit={false}
-          returnKeyType="done"
-          placeholder="Add item"
-          placeholderTextColor={c.textSecondary}
-          style={[styles.itemText, { color: c.text }]}
-        />
-      </View>
-    ) : null;
-
-  return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.background }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+  const screen = (
+    <>
       <Stack.Screen
         options={{
           title: note.type === 'checklist' ? 'Checklist' : 'Note',
@@ -258,25 +235,73 @@ export default function NoteEditor() {
           ),
         }}
       />
-      <NestableScrollContainer contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        {Header}
-        {note.type === 'checklist' ? (
+      {note.type === 'text' ? (
+        <View style={styles.screen}>
+          {TitleBar}
+          {showDetails ? Meta : null}
+          {preview ? (
+            <ScrollView style={styles.bodyFill} contentContainerStyle={{ paddingBottom: Spacing.six }} keyboardShouldPersistTaps="handled">
+              {note.body.trim() ? <Markdown style={mdStyles}>{note.body}</Markdown> : <Text style={{ color: c.textMuted }}>Nothing to preview.</Text>}
+            </ScrollView>
+          ) : (
+            <TextInput
+              value={note.body}
+              onChangeText={(t) => updateNote(note.id, { body: t })}
+              placeholder="Start writing… (markdown supported)"
+              placeholderTextColor={c.textSecondary}
+              multiline
+              style={[styles.bodyFill, styles.body, { color: c.text }]}
+            />
+          )}
+        </View>
+      ) : (
+        <NestableScrollContainer contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          {TitleBar}
+          {showDetails ? Meta : null}
+          <SectionLabel>Checklist</SectionLabel>
           <NestableDraggableFlatList
             data={note.items}
             keyExtractor={(it) => it.id}
             renderItem={renderChecklistItem}
             onDragEnd={({ data }) => reorderItems(note.id, data)}
           />
-        ) : null}
-        {Footer}
-      </NestableScrollContainer>
+          <View style={[styles.itemRow, { marginTop: Spacing.two }]}>
+            <Ionicons name="add" size={22} color={c.textSecondary} />
+            <TextInput
+              value={newItem}
+              onChangeText={setNewItem}
+              onSubmitEditing={submitItem}
+              blurOnSubmit={false}
+              returnKeyType="done"
+              placeholder="Add item"
+              placeholderTextColor={c.textSecondary}
+              style={[styles.itemText, { color: c.text }]}
+            />
+          </View>
+        </NestableScrollContainer>
+      )}
+    </>
+  );
+
+  return (
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: c.background }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 44 : 0}
+    >
+      {screen}
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   content: { padding: Spacing.three, paddingBottom: Spacing.six, gap: Spacing.three },
-  title: { fontSize: 26, fontWeight: '800' },
+  screen: { flex: 1, padding: Spacing.three, gap: Spacing.three },
+  title: { fontSize: 22, fontWeight: '800' },
+  toolbar: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  detailsBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: StyleSheet.hairlineWidth, borderRadius: Radius.full, paddingHorizontal: Spacing.three, paddingVertical: 6 },
+  detailsText: { fontSize: 14, fontWeight: '600' },
+  bodyFill: { flex: 1 },
   row: { flexDirection: 'row', gap: Spacing.two },
   colorRow: { flexDirection: 'row', gap: Spacing.two, alignItems: 'center' },
   colorChip: { width: 28, height: 28, borderRadius: 14, borderWidth: 1, borderColor: 'transparent' },
@@ -291,9 +316,7 @@ const styles = StyleSheet.create({
   thumbWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   thumb: { width: 96, height: 96, borderRadius: Radius.sm },
   thumbX: { position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  bodyHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  previewBox: { minHeight: 160 },
-  body: { fontSize: 17, lineHeight: 24, minHeight: 200, textAlignVertical: 'top' },
+  body: { fontSize: 17, lineHeight: 24, textAlignVertical: 'top' },
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   itemText: { flex: 1, fontSize: 17, paddingVertical: Spacing.one },
 });
