@@ -9,14 +9,17 @@ import { SwipeRow } from '@/components/swipe-row';
 import { toast } from '@/components/toast';
 import { Card, EmptyState, IconButton, Pill, ScreenTitle, useColors } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
-import { runOutInDays } from '@/lib/prediction';
+import { isDuePrediction, justRestocked, runOutInDays } from '@/lib/prediction';
 import type { GroceryItem } from '@/lib/types';
 import { useGroceryStore } from '@/store/groceryStore';
 
 function RunOutBadge({ item }: { item: GroceryItem }) {
   const c = useColors();
-  const days = runOutInDays(item, Date.now());
+  const now = Date.now();
+  const days = runOutInDays(item, now);
   if (days == null) return null;
+  // Just bought it — don't let a sparse-data rate scream "out today".
+  if (days <= 0 && justRestocked(item, now)) return null;
   const color = days <= (item.leadTimeDays ?? 2) ? c.warning : c.textSecondary;
   const label = days < 0 ? 'out now' : days === 0 ? 'out today' : `~${days}d left`;
   return (
@@ -56,6 +59,25 @@ export default function GroceryScreen() {
   const lowCount = items.filter((i) => i.low).length;
 
   const sections = useMemo(() => {
+    const now = Date.now();
+    // Higher = more urgent. Expired/expiring and low items float to the top of
+    // their category, and any category holding an urgent item floats above the rest.
+    const urgency = (it: GroceryItem) => {
+      let s = 0;
+      if (it.expiryAt != null) {
+        const d = differenceInCalendarDays(it.expiryAt, now);
+        if (d < 0) s = Math.max(s, 100);
+        else if (d <= 2) s = Math.max(s, 90);
+      }
+      if (it.low) s = Math.max(s, 80);
+      if (isDuePrediction(it, now)) s = Math.max(s, 70);
+      const left = runOutInDays(it, now);
+      if (left != null && left >= 0 && left <= 7 && !justRestocked(it, now)) {
+        s = Math.max(s, 60 - left);
+      }
+      return s;
+    };
+
     const visible = restockOnly ? items.filter((i) => i.low) : items;
     const groups = new Map<string, GroceryItem[]>();
     for (const it of visible) {
@@ -64,8 +86,17 @@ export default function GroceryScreen() {
       groups.get(key)!.push(it);
     }
     return [...groups.entries()]
-      .sort((a, b) => (a[0] === 'Other' ? 1 : b[0] === 'Other' ? -1 : a[0].localeCompare(b[0])))
-      .map(([title, data]) => ({ title, data }));
+      .map(([title, data]) => ({
+        title,
+        data: [...data].sort((a, b) => urgency(b) - urgency(a) || a.name.localeCompare(b.name)),
+        maxUrgency: Math.max(...data.map(urgency)),
+      }))
+      .sort((a, b) => {
+        if (a.maxUrgency !== b.maxUrgency) return b.maxUrgency - a.maxUrgency;
+        if (a.title === 'Other') return 1;
+        if (b.title === 'Other') return -1;
+        return a.title.localeCompare(b.title);
+      });
   }, [items, restockOnly]);
 
   const add = () => {

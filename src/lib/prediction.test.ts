@@ -7,6 +7,7 @@ import {
   DEFAULT_LEAD_TIME_DAYS,
   daysUntil,
   isDuePrediction,
+  justRestocked,
   predictRunOutAt,
 } from './prediction';
 import type { GroceryItem, PantryEvent } from './types';
@@ -132,4 +133,21 @@ test('isDuePrediction true once past buy-by', () => {
   });
   assert.equal(isDuePrediction(it, day(7)), false); // buy-by is day 8
   assert.equal(isDuePrediction(it, day(8)), true);
+});
+
+test('justRestocked: a fresh purchase is not out within the lead-time window', () => {
+  // High learned rate (12/day) then buy 1 → projects out in ~2h, but we just bought it.
+  const it = item([ev('purchase', day(0), 12), ev('ranout', day(1)), ev('purchase', day(10), 1)], {
+    leadTimeDays: 2,
+  });
+  assert.equal(justRestocked(it, day(10)), true); // just bought
+  assert.equal(justRestocked(it, day(10) + DAY_MS), true); // still inside 2-day window
+  assert.equal(justRestocked(it, day(13)), false); // window elapsed
+  // and the due-prediction is suppressed while freshly stocked
+  assert.equal(isDuePrediction(it, day(10)), false);
+});
+
+test('justRestocked: false when newest event is a ran-out, not a purchase', () => {
+  const it = item([ev('purchase', day(0), 12), ev('ranout', day(2))]);
+  assert.equal(justRestocked(it, day(2)), false);
 });

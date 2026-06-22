@@ -38,10 +38,10 @@ export default function GroceryItemEditor() {
   const [amount, setAmount] = useState('');
   const [showMerge, setShowMerge] = useState(false);
 
-  // Candidates for "merge into": other items sharing this item's unit.
+  // Candidates for "merge into": any other item (single-user dedup, units optional).
   const mergeTargets = useMemo(
-    () => allItems.filter((i) => i.id !== id && (i.unit ?? '') === (item?.unit ?? '')),
-    [allItems, id, item?.unit],
+    () => allItems.filter((i) => i.id !== id),
+    [allItems, id],
   );
 
   if (!item) {
