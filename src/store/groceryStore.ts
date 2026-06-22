@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { uid } from '@/lib/id';
 import { cancelReminder, scheduleOneOff } from '@/lib/notifications';
-import { buyByAt, predictRunOutAt } from '@/lib/prediction';
+import { buyByAt, justRestocked, predictRunOutAt } from '@/lib/prediction';
 import type { GroceryItem, PantryEventKind } from '@/lib/types';
 import { zustandStorage } from './persist';
 
@@ -27,7 +27,7 @@ type GroceryState = {
   addBarcode: (id: string, code: string) => void;
   /** Find the item a barcode resolves to, if any. */
   resolveBarcode: (code: string) => GroceryItem | undefined;
-  /** Fuse `sourceId` into `targetId`: merge events + barcodes, delete source. Same-unit only. */
+  /** Fuse `sourceId` into `targetId`: merge events + barcodes, delete source. Keeps the target's unit. */
   mergeItems: (sourceId: string, targetId: string) => Promise<{ ok: boolean; reason?: string }>;
   /** Set the unit / seed rate / lead time, then re-predict. */
   setEstimate: (id: string, patch: EstimatePatch) => Promise<void>;
@@ -49,7 +49,7 @@ export const useGroceryStore = create<GroceryState>()(
         let restockNotificationId: string | undefined;
         let low = it.low;
 
-        if (runOut != null) {
+        if (runOut != null && !justRestocked(it, now)) {
           const buyBy = buyByAt(runOut, it.leadTimeDays);
           if (now >= buyBy) {
             low = true; // already due — surface it on the shopping list now
@@ -164,9 +164,6 @@ export const useGroceryStore = create<GroceryState>()(
           const src = get().items.find((it) => it.id === sourceId);
           const tgt = get().items.find((it) => it.id === targetId);
           if (!src || !tgt || src.id === tgt.id) return { ok: false, reason: 'Item not found.' };
-          if ((src.unit ?? '') !== (tgt.unit ?? '')) {
-            return { ok: false, reason: 'Items must use the same unit to merge.' };
-          }
           await cancelReminder(src.restockNotificationId);
           set((s) => ({
             items: s.items

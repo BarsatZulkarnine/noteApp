@@ -106,8 +106,24 @@ export function daysUntil(at: number, now: number): number {
   return Math.round((at - now) / DAY_MS);
 }
 
+/**
+ * True if the newest event is a purchase still inside its lead-time window — i.e.
+ * you just restocked. Sparse data can teach an absurdly high consumption rate, so
+ * without this guard a fresh purchase can immediately project "out today"; we trust
+ * that something just bought isn't out.
+ */
+export function justRestocked(item: GroceryItem, now: number): boolean {
+  const events = item.events ?? [];
+  if (events.length === 0) return false;
+  const newest = [...events].sort(byTime)[events.length - 1];
+  if (newest.kind !== 'purchase') return false;
+  const lead = Math.max(item.leadTimeDays ?? DEFAULT_LEAD_TIME_DAYS, 1);
+  return now < newest.at + lead * DAY_MS;
+}
+
 /** True when the item is predicted to need restocking by `now` (past its buy-by). */
 export function isDuePrediction(item: GroceryItem, now: number): boolean {
+  if (justRestocked(item, now)) return false;
   const runOut = item.predictedRunOutAt ?? predictRunOutAt(item, now);
   if (runOut == null) return false;
   return now >= buyByAt(runOut, item.leadTimeDays);
